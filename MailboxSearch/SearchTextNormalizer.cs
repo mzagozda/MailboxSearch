@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.IO;
 using System.Text;
 
 namespace MailboxSearch;
@@ -63,6 +64,11 @@ internal static class SearchTextNormalizer
             return false;
         }
 
-        return codePoint is >= 0 and <= 0x10FFFF;
+        if (codePoint is < 0 or > 0x10FFFF || codePoint is >= 0xD800 and <= 0xDFFF)
+        {
+            throw new InvalidDataException($"Invalid Unicode escape sequence '\\u{hexValue}'.");
+        }
+
+        return true;
     }
 }

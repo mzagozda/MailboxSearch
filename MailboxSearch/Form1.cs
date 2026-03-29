@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using System.Diagnostics;
+using Serilog;
 
 namespace MailboxSearch;
 
@@ -166,11 +167,20 @@ public partial class Form1 : Form
         {
             FlushPendingUiUpdates();
             statusLabel.Text = "Search cancelled";
+            Log.Information(
+                "Search cancelled by user for folder {FolderPath} and query {QueryText}.",
+                folderPath,
+                query);
         }
         catch (Exception ex)
         {
             FlushPendingUiUpdates();
             statusLabel.Text = "Search failed.";
+            Log.Error(
+                ex,
+                "Search failed unexpectedly for folder {FolderPath} and query {QueryText}.",
+                folderPath,
+                query);
             MessageBox.Show(this, $"Search failed. {ex.Message}", "Search error", MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
         finally

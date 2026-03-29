@@ -3,6 +3,7 @@ using System.Text;
 using System.Text.Json;
 using HtmlAgilityPack;
 using MimeKit;
+using Serilog;
 
 namespace MailboxSearch;
 
@@ -19,13 +20,18 @@ public sealed class EmailSearchService
     {
         return await Task.Run(async () =>
         {
-            TrySetCurrentThreadPriority(ThreadPriority.BelowNormal);
-
             var query = SearchQuery.Parse(queryText);
             if (query.Terms.Count == 0)
             {
                 return (IReadOnlyList<EmailSearchResult>)Array.Empty<EmailSearchResult>();
             }
+
+            var searchId = Guid.NewGuid();
+            var searchLogger = Log.ForContext("SearchId", searchId)
+                .ForContext("RootFolderPath", rootFolderPath)
+                .ForContext("QueryText", queryText);
+
+
 
             var cacheDirectoryPath = Path.Combine(rootFolderPath, "_cache");
             Directory.CreateDirectory(cacheDirectoryPath);
@@ -35,44 +41,100 @@ public sealed class EmailSearchService
                 .Where(filePath => !IsInCacheDirectory(filePath, cacheDirectoryPath))
                 .ToArray();
 
+            searchLogger.Information(
+                "Search initiated for {TotalMessages} message(s).",
+                filePaths.Length);
+
             progressCallback?.Invoke(new SearchProgress(0, filePaths.Length));
 
-            var results = new List<EmailSearchResult>();
-            for (var index = 0; index < filePaths.Length; index++)
+            var priorityResult = TrySetCurrentThreadPriority(ThreadPriority.BelowNormal);
+            if (priorityResult is not null)
+                searchLogger.Warning("Could not reduce current thread priority");
+
+            try
             {
-                cancellationToken.ThrowIfCancellationRequested();
-
-                var filePath = filePaths[index];
-
-                var cachedDocument = await GetCachedDocumentAsync(rootFolderPath, cacheDirectoryPath, filePath, cancellationToken).ConfigureAwait(false);
-                if (cachedDocument is null || !Matches(cachedDocument.SearchableContent, query))
+                var results = new List<EmailSearchResult>();
+                var skippedMessages = 0;
+                for (var index = 0; index < filePaths.Length; index++)
                 {
-                    progressCallback?.Invoke(new SearchProgress(index + 1, filePaths.Length));
-                    continue;
+                    cancellationToken.ThrowIfCancellationRequested();
+
+                    var filePath = filePaths[index];
+
+                    var messageLogger = searchLogger
+                        .ForContext("MessageFilePath", filePath)
+                        .ForContext("MessageNumber", index + 1)
+                        .ForContext("TotalMessages", filePaths.Length);
+
+                    try
+                    {
+                        var cachedDocument = await GetCachedDocumentAsync(
+                            rootFolderPath,
+                            cacheDirectoryPath,
+                            filePath,
+                            messageLogger,
+                            cancellationToken).ConfigureAwait(false);
+
+                        if (cachedDocument is not null && Matches(cachedDocument.SearchableContent, query))
+                        {
+                            var result = cachedDocument.ToSearchResult();
+                            results.Add(result);
+                            resultCallback?.Invoke(result);
+                        }
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        throw;
+                    }
+                    catch (Exception ex)
+                    {
+                        skippedMessages++;
+                        messageLogger.Warning(ex, "Skipping message because processing failed.");
+                    }
+                    finally
+                    {
+                        progressCallback?.Invoke(new SearchProgress(index + 1, filePaths.Length));
+                    }
                 }
 
-                var result = cachedDocument.ToSearchResult();
-                results.Add(result);
-                resultCallback?.Invoke(result);
-                progressCallback?.Invoke(new SearchProgress(index + 1, filePaths.Length));
-            }
+                var orderedResults = (IReadOnlyList<EmailSearchResult>)results
+                    .OrderByDescending(result => result.Date ?? DateTimeOffset.MinValue)
+                    .ThenBy(result => result.Subject, StringComparer.CurrentCultureIgnoreCase)
+                    .ToList();
 
-            return (IReadOnlyList<EmailSearchResult>)results
-                .OrderByDescending(result => result.Date ?? DateTimeOffset.MinValue)
-                .ThenBy(result => result.Subject, StringComparer.CurrentCultureIgnoreCase)
-                .ToList();
+                searchLogger.Information(
+                    "Search completed with {ResultCount} result(s) and {SkippedMessages} skipped message(s).",
+                    orderedResults.Count,
+                    skippedMessages);
+
+                return orderedResults;
+            }
+            catch (OperationCanceledException)
+            {
+                searchLogger.Information("Search cancelled.");
+                throw;
+            }
+            finally
+            {
+                priorityResult = TrySetCurrentThreadPriority(ThreadPriority.Normal);
+                if (priorityResult is not null)
+                    searchLogger.Warning("Could not restore current thread priority");
+            }
         }, cancellationToken);
     }
 
-    private static void TrySetCurrentThreadPriority(ThreadPriority priority)
+    private static Exception? TrySetCurrentThreadPriority(ThreadPriority priority)
     {
         try
         {
             Thread.CurrentThread.Priority = priority;
         }
-        catch
+        catch(Exception exception)
         {
+            return exception;
         }
+
+        return null;
     }
 
     private static bool IsInCacheDirectory(string filePath, string cacheDirectoryPath)
@@ -85,46 +147,44 @@ public sealed class EmailSearchService
         return normalizedFilePath.StartsWith(normalizedCacheDirectory, StringComparison.OrdinalIgnoreCase);
     }
 
-    private static async Task<MimeMessage?> LoadMessageAsync(string filePath, CancellationToken cancellationToken)
+    private static async Task<MimeMessage> LoadMessageAsync(string filePath, CancellationToken cancellationToken)
     {
-        try
-        {
-            await using var stream = File.OpenRead(filePath);
-            return await MimeMessage.LoadAsync(stream, cancellationToken);
-        }
-        catch (OperationCanceledException)
-        {
-            throw;
-        }
-        catch
-        {
-            return null;
-        }
+        await using var stream = File.OpenRead(filePath);
+        return await MimeMessage.LoadAsync(stream, cancellationToken);
     }
 
     private static async Task<CachedEmailDocument?> GetCachedDocumentAsync(
         string rootFolderPath,
         string cacheDirectoryPath,
         string filePath,
+        ILogger logger,
         CancellationToken cancellationToken)
     {
         var cacheFilePath = GetCacheFilePath(rootFolderPath, cacheDirectoryPath, filePath);
         var sourceFileInfo = new FileInfo(filePath);
 
-        var cachedDocument = await TryReadCachedDocumentAsync(cacheFilePath, sourceFileInfo, cancellationToken);
+        var cachedDocument = await TryReadCachedDocumentAsync(cacheFilePath, sourceFileInfo, logger, cancellationToken);
         if (cachedDocument is not null)
         {
             return cachedDocument;
         }
 
         var message = await LoadMessageAsync(filePath, cancellationToken);
-        if (message is null)
+        cachedDocument = CreateCachedDocument(filePath, message);
+
+        try
         {
-            return null;
+            await WriteCachedDocumentAsync(cacheFilePath, sourceFileInfo, cachedDocument, cancellationToken);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            logger.Warning(ex, "Failed to write cache entry for message.");
         }
 
-        cachedDocument = CreateCachedDocument(filePath, message);
-        await WriteCachedDocumentAsync(cacheFilePath, sourceFileInfo, cachedDocument, cancellationToken);
         return cachedDocument;
     }
 
@@ -158,6 +218,7 @@ public sealed class EmailSearchService
     private static async Task<CachedEmailDocument?> TryReadCachedDocumentAsync(
         string cacheFilePath,
         FileInfo sourceFileInfo,
+        ILogger logger,
         CancellationToken cancellationToken)
     {
         if (!File.Exists(cacheFilePath))
@@ -208,8 +269,9 @@ public sealed class EmailSearchService
         {
             throw;
         }
-        catch
+        catch (Exception ex)
         {
+            logger.Warning(ex, "Failed to read cache entry for message. The source file will be reprocessed.");
             return null;
         }
     }
