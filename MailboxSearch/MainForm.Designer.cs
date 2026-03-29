@@ -1,6 +1,6 @@
 ﻿namespace MailboxSearch;
 
-partial class Form1
+partial class MainForm
 {
     /// <summary>
     ///  Required designer variable.
@@ -366,7 +366,7 @@ partial class Form1
         ClientSize = new Size(1088, 661);
         Controls.Add(mainLayoutPanel);
         MinimumSize = new Size(900, 500);
-        Name = "Form1";
+        Name = "MainForm";
         Padding = new Padding(12);
         StartPosition = FormStartPosition.CenterScreen;
         Text = "Mailbox Search";

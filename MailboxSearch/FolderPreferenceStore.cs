@@ -7,16 +7,16 @@ public sealed class FolderPreferenceStore
     private const string RegistryPath = @"Software\MailboxSearch";
     private const string FolderPathValueName = "SelectedFolderPath";
 
-    public string LoadFolderPath()
+    public static string LoadFolderPath()
     {
-        using var key = Registry.CurrentUser.OpenSubKey(RegistryPath, writable: false);
-        var value = key?.GetValue(FolderPathValueName) as string;
+        using RegistryKey? key = Registry.CurrentUser.OpenSubKey(RegistryPath, writable: false);
+        string? value = key?.GetValue(FolderPathValueName) as string;
         return value ?? string.Empty;
     }
 
-    public void SaveFolderPath(string folderPath)
+    public static void SaveFolderPath(string folderPath)
     {
-        using var key = Registry.CurrentUser.CreateSubKey(RegistryPath);
+        using RegistryKey key = Registry.CurrentUser.CreateSubKey(RegistryPath);
         key.SetValue(FolderPathValueName, folderPath, RegistryValueKind.String);
     }
 }

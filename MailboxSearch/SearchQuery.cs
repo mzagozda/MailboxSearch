@@ -6,14 +6,14 @@ public sealed class SearchQuery
 
     public required IReadOnlyList<string> Terms { get; init; }
 
-    public bool ExactPhrase { get; init; }
+    public bool ExactPhrase { get; private init; }
 
     public static SearchQuery Parse(string input)
     {
-        var trimmed = input.Trim();
+        string trimmed = input.Trim();
         if (trimmed.Length >= 2 && trimmed.StartsWith('"') && trimmed.EndsWith('"'))
         {
-            var phrase = SearchTextNormalizer.Normalize(trimmed[1..^1].Trim());
+            string phrase = SearchTextNormalizer.Normalize(trimmed[1..^1].Trim());
             return new SearchQuery
             {
                 RawValue = input,
@@ -22,7 +22,7 @@ public sealed class SearchQuery
             };
         }
 
-        var terms = trimmed
+        string[] terms = trimmed
             .Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
             .Select(SearchTextNormalizer.Normalize)
             .Where(term => !string.IsNullOrWhiteSpace(term))

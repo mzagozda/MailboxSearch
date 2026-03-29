@@ -7,7 +7,7 @@ internal static class LoggingConfiguration
 {
     public static ILogger CreateLogger()
     {
-        var logDirectoryPath = Path.Combine(AppContext.BaseDirectory, "logs");
+        string logDirectoryPath = Path.Combine(AppContext.BaseDirectory, "logs");
         Directory.CreateDirectory(logDirectoryPath);
 
         return new LoggerConfiguration()

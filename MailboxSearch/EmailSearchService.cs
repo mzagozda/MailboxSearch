@@ -1,9 +1,9 @@
 using System.Net;
 using System.Text;
 using System.Text.Json;
-using HtmlAgilityPack;
 using MimeKit;
 using Serilog;
+using HtmlDocument = HtmlAgilityPack.HtmlDocument;
 
 namespace MailboxSearch;
 
@@ -20,23 +20,21 @@ public sealed class EmailSearchService
     {
         return await Task.Run(async () =>
         {
-            var query = SearchQuery.Parse(queryText);
+            SearchQuery query = SearchQuery.Parse(queryText);
             if (query.Terms.Count == 0)
             {
-                return (IReadOnlyList<EmailSearchResult>)Array.Empty<EmailSearchResult>();
+                return [];
             }
 
-            var searchId = Guid.NewGuid();
-            var searchLogger = Log.ForContext("SearchId", searchId)
+            Guid searchId = Guid.NewGuid();
+            ILogger searchLogger = Log.ForContext("SearchId", searchId)
                 .ForContext("RootFolderPath", rootFolderPath)
                 .ForContext("QueryText", queryText);
-
-
-
-            var cacheDirectoryPath = Path.Combine(rootFolderPath, "_cache");
+            
+            string cacheDirectoryPath = Path.Combine(rootFolderPath, "_cache");
             Directory.CreateDirectory(cacheDirectoryPath);
 
-            var filePaths = Directory
+            string[] filePaths = Directory
                 .EnumerateFiles(rootFolderPath, "*.eml", SearchOption.AllDirectories)
                 .Where(filePath => !IsInCacheDirectory(filePath, cacheDirectoryPath))
                 .ToArray();
@@ -47,28 +45,28 @@ public sealed class EmailSearchService
 
             progressCallback?.Invoke(new SearchProgress(0, filePaths.Length));
 
-            var priorityResult = TrySetCurrentThreadPriority(ThreadPriority.BelowNormal);
+            Exception? priorityResult = TrySetCurrentThreadPriority(ThreadPriority.BelowNormal);
             if (priorityResult is not null)
                 searchLogger.Warning("Could not reduce current thread priority");
 
             try
             {
-                var results = new List<EmailSearchResult>();
-                var skippedMessages = 0;
-                for (var index = 0; index < filePaths.Length; index++)
+                List<EmailSearchResult> results = [];
+                int skippedMessages = 0;
+                for (int index = 0; index < filePaths.Length; index++)
                 {
                     cancellationToken.ThrowIfCancellationRequested();
 
-                    var filePath = filePaths[index];
+                    string filePath = filePaths[index];
 
-                    var messageLogger = searchLogger
+                    ILogger messageLogger = searchLogger
                         .ForContext("MessageFilePath", filePath)
                         .ForContext("MessageNumber", index + 1)
                         .ForContext("TotalMessages", filePaths.Length);
 
                     try
                     {
-                        var cachedDocument = await GetCachedDocumentAsync(
+                        CachedEmailDocument? cachedDocument = await GetCachedDocumentAsync(
                             rootFolderPath,
                             cacheDirectoryPath,
                             filePath,
@@ -77,7 +75,7 @@ public sealed class EmailSearchService
 
                         if (cachedDocument is not null && Matches(cachedDocument.SearchableContent, query))
                         {
-                            var result = cachedDocument.ToSearchResult();
+                            EmailSearchResult result = cachedDocument.ToSearchResult();
                             results.Add(result);
                             resultCallback?.Invoke(result);
                         }
@@ -97,7 +95,7 @@ public sealed class EmailSearchService
                     }
                 }
 
-                var orderedResults = (IReadOnlyList<EmailSearchResult>)results
+                IReadOnlyList<EmailSearchResult> orderedResults = results
                     .OrderByDescending(result => result.Date ?? DateTimeOffset.MinValue)
                     .ThenBy(result => result.Subject, StringComparer.CurrentCultureIgnoreCase)
                     .ToList();
@@ -139,17 +137,17 @@ public sealed class EmailSearchService
 
     private static bool IsInCacheDirectory(string filePath, string cacheDirectoryPath)
     {
-        var normalizedFilePath = Path.GetFullPath(filePath);
-        var normalizedCacheDirectory = Path.GetFullPath(cacheDirectoryPath)
-            .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
-            + Path.DirectorySeparatorChar;
+        string normalizedFilePath = Path.GetFullPath(filePath);
+        string normalizedCacheDirectory = Path.GetFullPath(cacheDirectoryPath)
+                                              .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
+                                          + Path.DirectorySeparatorChar;
 
         return normalizedFilePath.StartsWith(normalizedCacheDirectory, StringComparison.OrdinalIgnoreCase);
     }
 
     private static async Task<MimeMessage> LoadMessageAsync(string filePath, CancellationToken cancellationToken)
     {
-        await using var stream = File.OpenRead(filePath);
+        await using FileStream stream = File.OpenRead(filePath);
         return await MimeMessage.LoadAsync(stream, cancellationToken);
     }
 
@@ -160,16 +158,16 @@ public sealed class EmailSearchService
         ILogger logger,
         CancellationToken cancellationToken)
     {
-        var cacheFilePath = GetCacheFilePath(rootFolderPath, cacheDirectoryPath, filePath);
-        var sourceFileInfo = new FileInfo(filePath);
+        string cacheFilePath = GetCacheFilePath(rootFolderPath, cacheDirectoryPath, filePath);
+        FileInfo sourceFileInfo = new FileInfo(filePath);
 
-        var cachedDocument = await TryReadCachedDocumentAsync(cacheFilePath, sourceFileInfo, logger, cancellationToken);
+        CachedEmailDocument? cachedDocument = await TryReadCachedDocumentAsync(cacheFilePath, sourceFileInfo, logger, cancellationToken);
         if (cachedDocument is not null)
         {
             return cachedDocument;
         }
 
-        var message = await LoadMessageAsync(filePath, cancellationToken);
+        MimeMessage message = await LoadMessageAsync(filePath, cancellationToken);
         cachedDocument = CreateCachedDocument(filePath, message);
 
         try
@@ -190,7 +188,7 @@ public sealed class EmailSearchService
 
     private static string BuildSearchableContent(MimeMessage message)
     {
-        var builder = new StringBuilder();
+        StringBuilder builder = new();
         builder.AppendLine(SearchTextNormalizer.Normalize(message.Subject));
         builder.AppendLine(SearchTextNormalizer.Normalize(FormatSender(message)));
 
@@ -209,9 +207,9 @@ public sealed class EmailSearchService
 
     private static string GetCacheFilePath(string rootFolderPath, string cacheDirectoryPath, string filePath)
     {
-        var relativePath = Path.GetRelativePath(rootFolderPath, filePath);
-        var safeRelativePath = relativePath.Replace(Path.VolumeSeparatorChar.ToString(), string.Empty);
-        var cacheRelativePath = Path.ChangeExtension(safeRelativePath, ".search.json");
+        string relativePath = Path.GetRelativePath(rootFolderPath, filePath);
+        string safeRelativePath = relativePath.Replace(Path.VolumeSeparatorChar.ToString(), string.Empty);
+        string cacheRelativePath = Path.ChangeExtension(safeRelativePath, ".search.json");
         return Path.Combine(cacheDirectoryPath, cacheRelativePath);
     }
 
@@ -228,8 +226,8 @@ public sealed class EmailSearchService
 
         try
         {
-            await using var stream = File.OpenRead(cacheFilePath);
-            var cacheEntry = await JsonSerializer.DeserializeAsync<SearchableContentCacheEntry>(stream, cancellationToken: cancellationToken);
+            await using FileStream stream = File.OpenRead(cacheFilePath);
+            SearchableContentCacheEntry? cacheEntry = await JsonSerializer.DeserializeAsync<SearchableContentCacheEntry>(stream, cancellationToken: cancellationToken);
             if (cacheEntry is null)
             {
                 return null;
@@ -282,13 +280,13 @@ public sealed class EmailSearchService
         CachedEmailDocument cachedDocument,
         CancellationToken cancellationToken)
     {
-        var cacheDirectory = Path.GetDirectoryName(cacheFilePath);
+        string? cacheDirectory = Path.GetDirectoryName(cacheFilePath);
         if (!string.IsNullOrWhiteSpace(cacheDirectory))
         {
             Directory.CreateDirectory(cacheDirectory);
         }
 
-        var cacheEntry = new SearchableContentCacheEntry
+        SearchableContentCacheEntry cacheEntry = new SearchableContentCacheEntry
         {
             CacheVersion = CurrentCacheVersion,
             SourceLastWriteTimeUtcTicks = sourceFileInfo.LastWriteTimeUtc.Ticks,
@@ -301,7 +299,7 @@ public sealed class EmailSearchService
             SearchableContent = cachedDocument.SearchableContent
         };
 
-        await using var stream = File.Create(cacheFilePath);
+        await using FileStream stream = File.Create(cacheFilePath);
         await JsonSerializer.SerializeAsync(stream, cacheEntry, cancellationToken: cancellationToken);
     }
 
@@ -320,7 +318,7 @@ public sealed class EmailSearchService
 
     private static string NormalizeSubject(string? subject)
     {
-        var normalizedSubject = SearchTextNormalizer.Normalize(subject);
+        string normalizedSubject = SearchTextNormalizer.Normalize(subject);
         return string.IsNullOrWhiteSpace(normalizedSubject) ? "(No subject)" : normalizedSubject;
     }
 
@@ -341,7 +339,7 @@ public sealed class EmailSearchService
 
     private static string NormalizePreviewText(string value)
     {
-        var lines = value
+        IEnumerable<string> lines = value
             .Replace("\r", string.Empty)
             .Split('\n', StringSplitOptions.TrimEntries)
             .Select(SearchTextNormalizer.Normalize)
@@ -352,9 +350,9 @@ public sealed class EmailSearchService
 
     private static string ExtractTextFromHtml(string html)
     {
-        var document = new HtmlAgilityPack.HtmlDocument();
+        HtmlDocument document = new HtmlAgilityPack.HtmlDocument();
         document.LoadHtml(html);
-        var text = document.DocumentNode.InnerText;
+        string text = document.DocumentNode.InnerText;
         return WebUtility.HtmlDecode(text);
     }
 
@@ -365,7 +363,7 @@ public sealed class EmailSearchService
             return false;
         }
 
-        var comparison = StringComparison.OrdinalIgnoreCase;
+        StringComparison comparison = StringComparison.OrdinalIgnoreCase;
         if (query.ExactPhrase)
         {
             return content.Contains(query.Terms[0], comparison);
@@ -376,7 +374,7 @@ public sealed class EmailSearchService
 
     private static string FormatSender(MimeMessage message)
     {
-        var mailbox = message.From.Mailboxes.FirstOrDefault();
+        MailboxAddress? mailbox = message.From.Mailboxes.FirstOrDefault();
         if (mailbox is null)
         {
             return string.Empty;

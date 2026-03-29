@@ -4,7 +4,7 @@ using Serilog;
 
 namespace MailboxSearch;
 
-public partial class Form1 : Form
+public partial class MainForm : Form
 {
     private readonly EmailSearchService _searchService = new();
     private readonly FolderPreferenceStore _folderPreferenceStore = new();
@@ -14,7 +14,7 @@ public partial class Form1 : Form
     private volatile int _progressCurrentMessageNumber;
     private volatile int _progressTotalMessages;
 
-    public Form1()
+    public MainForm()
     {
         InitializeComponent();
         folderBrowserDialog.RootFolder = Environment.SpecialFolder.Desktop;
@@ -24,8 +24,15 @@ public partial class Form1 : Form
 
     private async void Form1_Load(object sender, EventArgs e)
     {
-        directoryTextBox.Text = _folderPreferenceStore.LoadFolderPath();
-        await SearchIfPossibleAsync();
+        try
+        {
+            directoryTextBox.Text = FolderPreferenceStore.LoadFolderPath();
+            await SearchIfPossibleAsync();
+        }
+        catch (Exception exception)
+        {
+            MessageBox.Show(this, exception.Message, "Search failed", MessageBoxButtons.OK, MessageBoxIcon.Error);
+        }
     }
 
     private void browseButton_Click(object sender, EventArgs e)
@@ -34,7 +41,7 @@ public partial class Form1 : Form
         {
             folderBrowserDialog.SelectedPath = directoryTextBox.Text;
         }
-
+    
         if (folderBrowserDialog.ShowDialog(this) != DialogResult.OK)
         {
             return;
@@ -46,7 +53,14 @@ public partial class Form1 : Form
 
     private async void searchButton_Click(object sender, EventArgs e)
     {
-        await SearchIfPossibleAsync();
+        try
+        {
+            await SearchIfPossibleAsync();
+        }
+        catch (Exception exception)
+        {
+            MessageBox.Show(this, exception.Message, "Search failed", MessageBoxButtons.OK, MessageBoxIcon.Error);
+        }
     }
 
     private void cancelButton_Click(object sender, EventArgs e)
@@ -113,8 +127,8 @@ public partial class Form1 : Form
 
     private async Task SearchIfPossibleAsync()
     {
-        var folderPath = directoryTextBox.Text.Trim();
-        var query = queryTextBox.Text.Trim();
+        string folderPath = directoryTextBox.Text.Trim();
+        string query = queryTextBox.Text.Trim();
 
         if (string.IsNullOrWhiteSpace(folderPath))
         {
@@ -154,7 +168,7 @@ public partial class Form1 : Form
 
         try
         {
-            var results = await _searchService.SearchAsync(
+            IReadOnlyList<EmailSearchResult> results = await _searchService.SearchAsync(
                 folderPath,
                 query,
                 UpdateSearchProgress,
@@ -200,9 +214,9 @@ public partial class Form1 : Form
         {
             resultsListView.Items.Clear();
 
-            foreach (var result in results)
+            foreach (EmailSearchResult result in results)
             {
-                var item = new ListViewItem(result.Subject);
+                ListViewItem item = new ListViewItem(result.Subject);
                 item.SubItems.Add(result.DateDisplay);
                 item.SubItems.Add(result.Sender);
                 item.SubItems.Add(result.FilePath);
@@ -258,8 +272,8 @@ public partial class Form1 : Form
 
         try
         {
-            var addedCount = 0;
-            while (addedCount < 200 && _pendingResults.TryDequeue(out var result))
+            int addedCount = 0;
+            while (addedCount < 200 && _pendingResults.TryDequeue(out EmailSearchResult? result))
             {
                 AddSearchResult(result);
                 addedCount++;
@@ -273,7 +287,7 @@ public partial class Form1 : Form
 
     private void AddSearchResult(EmailSearchResult result)
     {
-        var item = new ListViewItem(result.Subject);
+        ListViewItem item = new ListViewItem(result.Subject);
         item.SubItems.Add(result.DateDisplay);
         item.SubItems.Add(result.Sender);
         item.SubItems.Add(result.FilePath);
@@ -288,13 +302,7 @@ public partial class Form1 : Form
 
     private void resultsListView_SelectedIndexChanged(object sender, EventArgs e)
     {
-        if (resultsListView.SelectedItems.Count == 0)
-        {
-            ClearPreview();
-            return;
-        }
-
-        if (resultsListView.SelectedItems[0].Tag is not EmailSearchResult result)
+        if (resultsListView.SelectedItems.Count == 0 || resultsListView.SelectedItems[0].Tag is not EmailSearchResult result)
         {
             ClearPreview();
             return;
@@ -330,10 +338,10 @@ public partial class Form1 : Form
 
     private void PersistSelectedDirectory()
     {
-        var folderPath = directoryTextBox.Text.Trim();
+        string folderPath = directoryTextBox.Text.Trim();
         if (Directory.Exists(folderPath))
         {
-            _folderPreferenceStore.SaveFolderPath(folderPath);
+            FolderPreferenceStore.SaveFolderPath(folderPath);
         }
     }
 }
