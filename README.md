@@ -13,6 +13,8 @@ The app also provides:
 
 - exact-phrase search when the full query is enclosed in double quotes
 - keyword search with `OR` semantics for unquoted terms
+- optional inclusive date-from and date-to filters
+- final result sorting by date, title, or author
 - preview of the selected message
 - double-click to open the original `.eml` file with the default Windows handler
 - persistent storage of the selected source folder in the Windows registry
@@ -49,9 +51,11 @@ dotnet run
 1. Start the application.
 2. Select a root folder that contains `.eml` files in one or more subfolders.
 3. Enter a search query.
-4. Review matching results as they appear during the scan.
-5. Select a result to preview the message text.
-6. Double-click a result to open the original `.eml` file in the default mail application.
+4. Optionally set Date From, Date To, and Sort By before starting the search.
+5. Review matching results as they appear during the scan.
+6. After the scan completes, review the final list in the selected sort order.
+7. Select a result to preview the message text.
+8. Double-click a result to open the original `.eml` file in the default mail application.
 
 ## Search Behavior
 
@@ -88,6 +92,24 @@ The search includes:
 
 The solution also normalizes Unicode escape sequences such as `\u0119`, so Polish diacritic characters can be matched correctly when they appear in escaped form in message text.
 
+### Date filters
+
+Users can optionally set either or both date bounds before the search starts.
+
+- `Date from` includes messages dated on or after the selected date.
+- `Date to` includes messages dated on or before the selected date.
+- When either date filter is active, messages without a valid parsed date are excluded.
+
+The UI treats selected dates as full local calendar days, so both boundaries are inclusive.
+
+### Final sort order
+
+The `Sort by` selector controls the order of the final result list after the search completes.
+
+- `Date`: newest first
+- `Title`: ascending alphabetical order
+- `Author`: ascending alphabetical order
+
 ## Caching
 
 MailboxSearch creates a `_cache` subfolder inside the selected source folder.
@@ -123,7 +145,7 @@ This application is suitable for:
 - Search is text-based only. It does not search attachments, embedded documents, or binary content.
 - Exact phrase search only applies when the entire query is enclosed in double quotes.
 - Unquoted terms are matched with `OR` semantics only. There is no support for `AND`, `NOT`, field-specific filters, or advanced query syntax.
-- Results are streamed as they are found during scanning, so while the search is running the visible order reflects discovery order. The implementation does not continuously re-sort the displayed list during the active scan.
+- Results are streamed as they are found during scanning. Once the search completes, the list is rebuilt using the selected final sort order.
 - HTML messages are previewed and searched as extracted text only. Original HTML formatting is not rendered in the preview pane.
 - Cache invalidation uses file metadata, not a full content hash. In unusual cases, a changed file with identical size and timestamp could reuse stale cache data.
 - The app scans one selected root folder at a time.

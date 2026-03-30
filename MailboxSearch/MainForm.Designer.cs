@@ -39,6 +39,13 @@ partial class MainForm
         searchButton = new Button();
         resetButton = new Button();
         cancelButton = new Button();
+        filterPanel = new FlowLayoutPanel();
+        dateFromLabel = new Label();
+        dateFromPicker = new DateTimePicker();
+        dateToLabel = new Label();
+        dateToPicker = new DateTimePicker();
+        sortByLabel = new Label();
+        sortByComboBox = new ComboBox();
         contentSplitContainer = new SplitContainer();
         resultsListView = new ListView();
         subjectColumnHeader = new ColumnHeader();
@@ -76,18 +83,21 @@ partial class MainForm
         mainLayoutPanel.Controls.Add(queryLabel, 0, 1);
         mainLayoutPanel.Controls.Add(queryTextBox, 1, 1);
         mainLayoutPanel.Controls.Add(buttonPanel, 2, 1);
-        mainLayoutPanel.Controls.Add(contentSplitContainer, 0, 2);
-        mainLayoutPanel.Controls.Add(statusLabel, 0, 3);
+        mainLayoutPanel.Controls.Add(filterPanel, 0, 2);
+        mainLayoutPanel.Controls.Add(contentSplitContainer, 0, 3);
+        mainLayoutPanel.Controls.Add(statusLabel, 0, 4);
         mainLayoutPanel.Dock = DockStyle.Fill;
         mainLayoutPanel.Location = new Point(12, 12);
         mainLayoutPanel.Name = "mainLayoutPanel";
-        mainLayoutPanel.RowCount = 4;
+        mainLayoutPanel.RowCount = 5;
+        mainLayoutPanel.RowStyles.Add(new RowStyle());
         mainLayoutPanel.RowStyles.Add(new RowStyle());
         mainLayoutPanel.RowStyles.Add(new RowStyle());
         mainLayoutPanel.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
         mainLayoutPanel.RowStyles.Add(new RowStyle());
         mainLayoutPanel.Size = new Size(1064, 637);
         mainLayoutPanel.TabIndex = 0;
+        mainLayoutPanel.SetColumnSpan(filterPanel, 3);
         mainLayoutPanel.SetColumnSpan(contentSplitContainer, 3);
         mainLayoutPanel.SetColumnSpan(statusLabel, 3);
         // 
@@ -190,11 +200,90 @@ partial class MainForm
         cancelButton.Visible = false;
         cancelButton.Click += cancelButton_Click;
         // 
+        // filterPanel
+        // 
+        filterPanel.AutoSize = true;
+        filterPanel.Controls.Add(dateFromLabel);
+        filterPanel.Controls.Add(dateFromPicker);
+        filterPanel.Controls.Add(dateToLabel);
+        filterPanel.Controls.Add(dateToPicker);
+        filterPanel.Controls.Add(sortByLabel);
+        filterPanel.Controls.Add(sortByComboBox);
+        filterPanel.Dock = DockStyle.Fill;
+        filterPanel.Location = new Point(3, 74);
+        filterPanel.Margin = new Padding(3, 3, 3, 6);
+        filterPanel.Name = "filterPanel";
+        filterPanel.Size = new Size(1058, 34);
+        filterPanel.TabIndex = 6;
+        filterPanel.WrapContents = false;
+        // 
+        // dateFromLabel
+        // 
+        dateFromLabel.Anchor = AnchorStyles.Left;
+        dateFromLabel.AutoSize = true;
+        dateFromLabel.Location = new Point(3, 7);
+        dateFromLabel.Margin = new Padding(3, 7, 6, 0);
+        dateFromLabel.Name = "dateFromLabel";
+        dateFromLabel.Size = new Size(78, 20);
+        dateFromLabel.TabIndex = 0;
+        dateFromLabel.Text = "Date from:";
+        // 
+        // dateFromPicker
+        // 
+        dateFromPicker.Checked = false;
+        dateFromPicker.Format = DateTimePickerFormat.Short;
+        dateFromPicker.Location = new Point(90, 3);
+        dateFromPicker.Name = "dateFromPicker";
+        dateFromPicker.ShowCheckBox = true;
+        dateFromPicker.Size = new Size(148, 27);
+        dateFromPicker.TabIndex = 1;
+        // 
+        // dateToLabel
+        // 
+        dateToLabel.Anchor = AnchorStyles.Left;
+        dateToLabel.AutoSize = true;
+        dateToLabel.Location = new Point(250, 7);
+        dateToLabel.Margin = new Padding(9, 7, 6, 0);
+        dateToLabel.Name = "dateToLabel";
+        dateToLabel.Size = new Size(61, 20);
+        dateToLabel.TabIndex = 2;
+        dateToLabel.Text = "Date to:";
+        // 
+        // dateToPicker
+        // 
+        dateToPicker.Checked = false;
+        dateToPicker.Format = DateTimePickerFormat.Short;
+        dateToPicker.Location = new Point(320, 3);
+        dateToPicker.Name = "dateToPicker";
+        dateToPicker.ShowCheckBox = true;
+        dateToPicker.Size = new Size(148, 27);
+        dateToPicker.TabIndex = 3;
+        // 
+        // sortByLabel
+        // 
+        sortByLabel.Anchor = AnchorStyles.Left;
+        sortByLabel.AutoSize = true;
+        sortByLabel.Location = new Point(480, 7);
+        sortByLabel.Margin = new Padding(9, 7, 6, 0);
+        sortByLabel.Name = "sortByLabel";
+        sortByLabel.Size = new Size(58, 20);
+        sortByLabel.TabIndex = 4;
+        sortByLabel.Text = "Sort by:";
+        // 
+        // sortByComboBox
+        // 
+        sortByComboBox.DropDownStyle = ComboBoxStyle.DropDownList;
+        sortByComboBox.FormattingEnabled = true;
+        sortByComboBox.Location = new Point(547, 3);
+        sortByComboBox.Name = "sortByComboBox";
+        sortByComboBox.Size = new Size(140, 28);
+        sortByComboBox.TabIndex = 5;
+        // 
         // 
         // contentSplitContainer
         // 
         contentSplitContainer.Dock = DockStyle.Fill;
-        contentSplitContainer.Location = new Point(3, 74);
+        contentSplitContainer.Location = new Point(3, 114);
         contentSplitContainer.Name = "contentSplitContainer";
         contentSplitContainer.Orientation = Orientation.Horizontal;
         // 
@@ -396,6 +485,13 @@ partial class MainForm
     private Button searchButton;
     private Button resetButton;
     private Button cancelButton;
+    private FlowLayoutPanel filterPanel;
+    private Label dateFromLabel;
+    private DateTimePicker dateFromPicker;
+    private Label dateToLabel;
+    private DateTimePicker dateToPicker;
+    private Label sortByLabel;
+    private ComboBox sortByComboBox;
     private SplitContainer contentSplitContainer;
     private ListView resultsListView;
     private ColumnHeader subjectColumnHeader;

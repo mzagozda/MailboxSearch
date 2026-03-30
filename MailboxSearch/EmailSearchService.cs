@@ -13,14 +13,14 @@ public sealed class EmailSearchService
 
     public async Task<IReadOnlyList<EmailSearchResult>> SearchAsync(
         string rootFolderPath,
-        string queryText,
+        SearchOptions searchOptions,
         Action<SearchProgress>? progressCallback = null,
         Action<EmailSearchResult>? resultCallback = null,
         CancellationToken cancellationToken = default)
     {
         return await Task.Run(async () =>
         {
-            SearchQuery query = SearchQuery.Parse(queryText);
+            SearchQuery query = SearchQuery.Parse(searchOptions.QueryText);
             if (query.Terms.Count == 0)
             {
                 return [];
@@ -29,7 +29,10 @@ public sealed class EmailSearchService
             Guid searchId = Guid.NewGuid();
             ILogger searchLogger = Log.ForContext("SearchId", searchId)
                 .ForContext("RootFolderPath", rootFolderPath)
-                .ForContext("QueryText", queryText);
+                .ForContext("QueryText", searchOptions.QueryText)
+                .ForContext("DateFrom", searchOptions.DateFrom)
+                .ForContext("DateTo", searchOptions.DateTo)
+                .ForContext("SortCriterion", searchOptions.SortCriterion);
             
             string cacheDirectoryPath = Path.Combine(rootFolderPath, "_cache");
             Directory.CreateDirectory(cacheDirectoryPath);
@@ -73,7 +76,9 @@ public sealed class EmailSearchService
                             messageLogger,
                             cancellationToken).ConfigureAwait(false);
 
-                        if (cachedDocument is not null && Matches(cachedDocument.SearchableContent, query))
+                        if (cachedDocument is not null
+                            && MatchesDateRange(cachedDocument.Date, searchOptions)
+                            && Matches(cachedDocument.SearchableContent, query))
                         {
                             EmailSearchResult result = cachedDocument.ToSearchResult();
                             results.Add(result);
@@ -95,10 +100,7 @@ public sealed class EmailSearchService
                     }
                 }
 
-                IReadOnlyList<EmailSearchResult> orderedResults = results
-                    .OrderByDescending(result => result.Date ?? DateTimeOffset.MinValue)
-                    .ThenBy(result => result.Subject, StringComparer.CurrentCultureIgnoreCase)
-                    .ToList();
+                IReadOnlyList<EmailSearchResult> orderedResults = OrderResults(results, searchOptions.SortCriterion);
 
                 searchLogger.Information(
                     "Search completed with {ResultCount} result(s) and {SkippedMessages} skipped message(s).",
@@ -370,6 +372,58 @@ public sealed class EmailSearchService
         }
 
         return query.Terms.Any(term => content.Contains(term, comparison));
+    }
+
+    private static bool MatchesDateRange(DateTimeOffset? messageDate, SearchOptions searchOptions)
+    {
+        if (!searchOptions.HasDateFilter)
+        {
+            return true;
+        }
+
+        if (messageDate is null)
+        {
+            return false;
+        }
+
+        if (searchOptions.DateFrom is { } dateFrom && messageDate.Value < dateFrom)
+        {
+            return false;
+        }
+
+        if (searchOptions.DateTo is { } dateTo && messageDate.Value > dateTo)
+        {
+            return false;
+        }
+
+        return true;
+    }
+
+    private static IReadOnlyList<EmailSearchResult> OrderResults(
+        IEnumerable<EmailSearchResult> results,
+        SearchSortCriterion sortCriterion)
+    {
+        return sortCriterion switch
+        {
+            SearchSortCriterion.Title => results
+                .OrderBy(result => result.Subject, StringComparer.CurrentCultureIgnoreCase)
+                .ThenBy(result => result.Sender, StringComparer.CurrentCultureIgnoreCase)
+                .ThenByDescending(result => result.Date.HasValue)
+                .ThenByDescending(result => result.Date)
+                .ToList(),
+            SearchSortCriterion.Author => results
+                .OrderBy(result => result.Sender, StringComparer.CurrentCultureIgnoreCase)
+                .ThenBy(result => result.Subject, StringComparer.CurrentCultureIgnoreCase)
+                .ThenByDescending(result => result.Date.HasValue)
+                .ThenByDescending(result => result.Date)
+                .ToList(),
+            _ => results
+                .OrderByDescending(result => result.Date.HasValue)
+                .ThenByDescending(result => result.Date)
+                .ThenBy(result => result.Subject, StringComparer.CurrentCultureIgnoreCase)
+                .ThenBy(result => result.Sender, StringComparer.CurrentCultureIgnoreCase)
+                .ToList()
+        };
     }
 
     private static string FormatSender(MimeMessage message)

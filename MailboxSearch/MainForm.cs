@@ -18,6 +18,8 @@ public partial class MainForm : Form
     {
         InitializeComponent();
         folderBrowserDialog.RootFolder = Environment.SpecialFolder.Desktop;
+        sortByComboBox.DataSource = Enum.GetValues<SearchSortCriterion>();
+        sortByComboBox.SelectedItem = SearchSortCriterion.Date;
         _uiRefreshTimer.Interval = 100;
         _uiRefreshTimer.Tick += uiRefreshTimer_Tick;
     }
@@ -72,9 +74,12 @@ public partial class MainForm : Form
     private void resetButton_Click(object sender, EventArgs e)
     {
         queryTextBox.Clear();
+        dateFromPicker.Checked = false;
+        dateToPicker.Checked = false;
+        sortByComboBox.SelectedItem = SearchSortCriterion.Date;
         resultsListView.Items.Clear();
         ClearPreview();
-        statusLabel.Text = "Query cleared.";
+        statusLabel.Text = "Search criteria cleared.";
         queryTextBox.Focus();
     }
 
@@ -151,14 +156,21 @@ public partial class MainForm : Form
             return;
         }
 
+        SearchOptions searchOptions = CreateSearchOptions(query);
+        if (searchOptions.DateFrom is { } dateFrom && searchOptions.DateTo is { } dateTo && dateFrom > dateTo)
+        {
+            statusLabel.Text = "Date from must be earlier than or equal to date to.";
+            resultsListView.Items.Clear();
+            ClearPreview();
+            return;
+        }
+
         PersistSelectedDirectory();
         _searchCancellationTokenSource?.Dispose();
         _searchCancellationTokenSource = new CancellationTokenSource();
         _progressCurrentMessageNumber = 0;
         _progressTotalMessages = 0;
-        while (_pendingResults.TryDequeue(out _))
-        {
-        }
+        ClearPendingResultsQueue();
 
         ToggleSearchControls(isSearching: true);
         statusLabel.Text = "Searching 0 of 0...";
@@ -170,11 +182,13 @@ public partial class MainForm : Form
         {
             IReadOnlyList<EmailSearchResult> results = await _searchService.SearchAsync(
                 folderPath,
-                query,
+                searchOptions,
                 UpdateSearchProgress,
                 QueueSearchResult,
                 _searchCancellationTokenSource.Token);
-            FlushPendingUiUpdates();
+            _uiRefreshTimer.Stop();
+            ClearPendingResultsQueue();
+            PopulateResults(results);
             statusLabel.Text = $"Found {results.Count} matching message(s).";
         }
         catch (OperationCanceledException)
@@ -216,12 +230,7 @@ public partial class MainForm : Form
 
             foreach (EmailSearchResult result in results)
             {
-                ListViewItem item = new ListViewItem(result.Subject);
-                item.SubItems.Add(result.DateDisplay);
-                item.SubItems.Add(result.Sender);
-                item.SubItems.Add(result.FilePath);
-                item.Tag = result;
-                resultsListView.Items.Add(item);
+                resultsListView.Items.Add(CreateResultItem(result));
             }
 
             if (resultsListView.Items.Count > 0)
@@ -287,11 +296,7 @@ public partial class MainForm : Form
 
     private void AddSearchResult(EmailSearchResult result)
     {
-        ListViewItem item = new ListViewItem(result.Subject);
-        item.SubItems.Add(result.DateDisplay);
-        item.SubItems.Add(result.Sender);
-        item.SubItems.Add(result.FilePath);
-        item.Tag = result;
+        ListViewItem item = CreateResultItem(result);
         resultsListView.Items.Add(item);
 
         if (resultsListView.Items.Count == 1)
@@ -324,6 +329,55 @@ public partial class MainForm : Form
         previewBodyTextBox.Clear();
     }
 
+    private SearchOptions CreateSearchOptions(string query)
+    {
+        return new SearchOptions
+        {
+            QueryText = query,
+            DateFrom = GetSelectedDateFrom(),
+            DateTo = GetSelectedDateTo(),
+            SortCriterion = sortByComboBox.SelectedItem is SearchSortCriterion selectedSortCriterion
+                ? selectedSortCriterion
+                : SearchSortCriterion.Date
+        };
+    }
+
+    private static DateTimeOffset CreateLocalDateBoundary(DateTime dateValue, bool endOfDay)
+    {
+        DateTime localDateTime = DateTime.SpecifyKind(
+            endOfDay ? dateValue.Date.AddDays(1).AddTicks(-1) : dateValue.Date,
+            DateTimeKind.Local);
+
+        return new DateTimeOffset(localDateTime);
+    }
+
+    private DateTimeOffset? GetSelectedDateFrom()
+    {
+        return dateFromPicker.Checked ? CreateLocalDateBoundary(dateFromPicker.Value, endOfDay: false) : null;
+    }
+
+    private DateTimeOffset? GetSelectedDateTo()
+    {
+        return dateToPicker.Checked ? CreateLocalDateBoundary(dateToPicker.Value, endOfDay: true) : null;
+    }
+
+    private static ListViewItem CreateResultItem(EmailSearchResult result)
+    {
+        ListViewItem item = new ListViewItem(result.Subject);
+        item.SubItems.Add(result.DateDisplay);
+        item.SubItems.Add(result.Sender);
+        item.SubItems.Add(result.FilePath);
+        item.Tag = result;
+        return item;
+    }
+
+    private void ClearPendingResultsQueue()
+    {
+        while (_pendingResults.TryDequeue(out _))
+        {
+        }
+    }
+
     private void ToggleSearchControls(bool isSearching)
     {
         browseButton.Enabled = !isSearching;
@@ -331,6 +385,9 @@ public partial class MainForm : Form
         resetButton.Enabled = !isSearching;
         queryTextBox.Enabled = !isSearching;
         directoryTextBox.Enabled = !isSearching;
+        dateFromPicker.Enabled = !isSearching;
+        dateToPicker.Enabled = !isSearching;
+        sortByComboBox.Enabled = !isSearching;
         cancelButton.Enabled = isSearching;
         cancelButton.Visible = isSearching;
         UseWaitCursor = false;

@@ -2,3 +2,5 @@
 _ReSharper.Caches
 MailboxSearch/bin
 MailboxSearch/obj
+.vs
+MailboxSearch/MailboxSearch.csproj.user
