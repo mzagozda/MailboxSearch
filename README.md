@@ -122,11 +122,26 @@ For each `.eml` file, the cache stores:
 - parsed date
 - preview text
 
+Each cache entry is written as a `.search.json` file under `_cache`, using the email's path relative to the selected root folder. The cache folder therefore mirrors the source folder structure, but with a JSON-based search index file instead of the original `.eml` extension.
+
 The cache is reused on later searches when the source file has not changed. Cache invalidation is based on:
 
 - source file last write time
 - source file length
 - internal cache version
+
+### Cache index versioning
+
+Cache file versioning is handled by a single integer stored inside each cache file as `CacheVersion`.
+
+- The current cache format version is `2`.
+- The version is part of the JSON payload, not the file name.
+- Cache files are not stored side by side per version; each email has one cache file path.
+- A cache entry is considered valid only when all three checks succeed: last write time matches, file length matches, and `CacheVersion` matches the application's current version.
+- If the version does not match, the cache entry is ignored, the original `.eml` file is reparsed, and the same cache file is overwritten with the current format.
+- Older cache versions can remain on disk only until that message is searched again. There is no separate migration step or cleanup pass for outdated versions.
+
+In practice, changing the internal cache version is a schema break switch for the cached search index. It forces lazy regeneration of stale cache files during later searches.
 
 ## Use Cases
 
