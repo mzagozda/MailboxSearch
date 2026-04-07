@@ -10,6 +10,7 @@ namespace MailboxSearch;
 public sealed class EmailSearchService
 {
     private const int CurrentCacheVersion = 2;
+    private static readonly StringComparison SearchComparison = StringComparison.OrdinalIgnoreCase;
 
     public async Task<IReadOnlyList<EmailSearchResult>> SearchAsync(
         string rootFolderPath,
@@ -365,13 +366,17 @@ public sealed class EmailSearchService
             return false;
         }
 
-        StringComparison comparison = StringComparison.OrdinalIgnoreCase;
         if (query.ExactPhrase)
         {
-            return content.Contains(query.Terms[0], comparison);
+            return ContainsSearchTerm(content, query.Terms[0]);
         }
 
-        return query.Terms.Any(term => content.Contains(term, comparison));
+        return query.Terms.Any(term => ContainsSearchTerm(content, term));
+    }
+
+    private static bool ContainsSearchTerm(string content, string term)
+    {
+        return content.Contains(term, SearchComparison);
     }
 
     private static bool MatchesDateRange(DateTimeOffset? messageDate, SearchOptions searchOptions)

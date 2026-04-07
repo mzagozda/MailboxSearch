@@ -13,6 +13,7 @@ The app also provides:
 
 - exact-phrase search when the full query is enclosed in double quotes
 - keyword search with `OR` semantics for unquoted terms
+- case-insensitive matching for both keyword and exact-phrase searches
 - optional inclusive date-from and date-to filters
 - final result sorting by date, title, or author
 - preview of the selected message
@@ -64,7 +65,7 @@ The application writes daily log files under `bin/.../logs/` when running from t
 
 ### Keyword search
 
-If the query is not wrapped in double quotes, the app splits the query into terms and returns messages containing any of those terms.
+If the query is not wrapped in double quotes, the app splits the query into terms and returns messages containing any of those terms. Keyword matching is case-insensitive.
 
 Example:
 
@@ -76,7 +77,7 @@ This matches messages containing `invoice` or `payment` or `overdue`.
 
 ### Exact phrase search
 
-If the entire query is wrapped in double quotes, the app searches for that exact phrase.
+If the entire query is wrapped in double quotes, the app searches for that exact phrase. Exact-phrase matching is also case-insensitive.
 
 Example:
 
@@ -92,6 +93,8 @@ The search includes:
 - sender text
 - plain-text body
 - HTML body converted to text
+
+Search matching is case-insensitive across all of the fields above.
 
 The solution also normalizes Unicode escape sequences such as `\u0119`, so Polish diacritic characters can be matched correctly when they appear in escaped form in message text.
 
