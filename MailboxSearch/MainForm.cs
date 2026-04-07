@@ -37,6 +37,45 @@ public partial class MainForm : Form
         }
     }
 
+    private async void cleanupToolStripMenuItem_Click(object sender, EventArgs e)
+    {
+        if (!TryGetSelectedFolderPath(out string folderPath))
+        {
+            return;
+        }
+
+        PersistSelectedDirectory();
+        ToggleOperationControls(isBusy: true, isSearching: false);
+        statusLabel.Text = "Cleaning up outdated cache entries...";
+
+        try
+        {
+            CacheCleanupResult cleanupResult = await _searchService.CleanupOutdatedCacheAsync(folderPath);
+            statusLabel.Text = cleanupResult.RemovedEntries == 0
+                ? "No outdated cache entries were found."
+                : $"Removed {cleanupResult.RemovedEntries} outdated cache entr{(cleanupResult.RemovedEntries == 1 ? "y" : "ies")}.";
+
+            if (cleanupResult.FailedEntries > 0)
+            {
+                statusLabel.Text += $" {cleanupResult.FailedEntries} entr{(cleanupResult.FailedEntries == 1 ? "y could not be inspected." : "ies could not be inspected.")}";
+            }
+        }
+        catch (Exception exception)
+        {
+            statusLabel.Text = "Cache cleanup failed.";
+            MessageBox.Show(this, exception.Message, "Cleanup failed", MessageBoxButtons.OK, MessageBoxIcon.Error);
+        }
+        finally
+        {
+            ToggleOperationControls(isBusy: false, isSearching: false);
+        }
+    }
+
+    private void exitToolStripMenuItem_Click(object sender, EventArgs e)
+    {
+        Close();
+    }
+
     private void browseButton_Click(object sender, EventArgs e)
     {
         if (Directory.Exists(directoryTextBox.Text))
@@ -132,22 +171,13 @@ public partial class MainForm : Form
 
     private async Task SearchIfPossibleAsync()
     {
-        string folderPath = directoryTextBox.Text.Trim();
+        if (!TryGetSelectedFolderPath(out string folderPath))
+        {
+            resultsListView.Items.Clear();
+            return;
+        }
+
         string query = queryTextBox.Text.Trim();
-
-        if (string.IsNullOrWhiteSpace(folderPath))
-        {
-            statusLabel.Text = "Select a folder with EML files.";
-            resultsListView.Items.Clear();
-            return;
-        }
-
-        if (!Directory.Exists(folderPath))
-        {
-            statusLabel.Text = "The selected folder does not exist.";
-            resultsListView.Items.Clear();
-            return;
-        }
 
         if (string.IsNullOrWhiteSpace(query))
         {
@@ -172,7 +202,7 @@ public partial class MainForm : Form
         _progressTotalMessages = 0;
         ClearPendingResultsQueue();
 
-        ToggleSearchControls(isSearching: true);
+        ToggleOperationControls(isBusy: true, isSearching: true);
         statusLabel.Text = "Searching 0 of 0...";
         resultsListView.Items.Clear();
         ClearPreview();
@@ -216,7 +246,7 @@ public partial class MainForm : Form
             _uiRefreshTimer.Stop();
             _searchCancellationTokenSource?.Dispose();
             _searchCancellationTokenSource = null;
-            ToggleSearchControls(isSearching: false);
+            ToggleOperationControls(isBusy: false, isSearching: false);
         }
     }
 
@@ -378,19 +408,39 @@ public partial class MainForm : Form
         }
     }
 
-    private void ToggleSearchControls(bool isSearching)
+    private void ToggleOperationControls(bool isBusy, bool isSearching)
     {
-        browseButton.Enabled = !isSearching;
-        searchButton.Enabled = !isSearching;
-        resetButton.Enabled = !isSearching;
-        queryTextBox.Enabled = !isSearching;
-        directoryTextBox.Enabled = !isSearching;
-        dateFromPicker.Enabled = !isSearching;
-        dateToPicker.Enabled = !isSearching;
-        sortByComboBox.Enabled = !isSearching;
+        browseButton.Enabled = !isBusy;
+        searchButton.Enabled = !isBusy;
+        resetButton.Enabled = !isBusy;
+        queryTextBox.Enabled = !isBusy;
+        directoryTextBox.Enabled = !isBusy;
+        dateFromPicker.Enabled = !isBusy;
+        dateToPicker.Enabled = !isBusy;
+        sortByComboBox.Enabled = !isBusy;
+        cleanupToolStripMenuItem.Enabled = !isBusy;
+        exitToolStripMenuItem.Enabled = !isBusy;
         cancelButton.Enabled = isSearching;
         cancelButton.Visible = isSearching;
         UseWaitCursor = false;
+    }
+
+    private bool TryGetSelectedFolderPath(out string folderPath)
+    {
+        folderPath = directoryTextBox.Text.Trim();
+        if (string.IsNullOrWhiteSpace(folderPath))
+        {
+            statusLabel.Text = "Select a folder with EML files.";
+            return false;
+        }
+
+        if (!Directory.Exists(folderPath))
+        {
+            statusLabel.Text = "The selected folder does not exist.";
+            return false;
+        }
+
+        return true;
     }
 
     private void PersistSelectedDirectory()

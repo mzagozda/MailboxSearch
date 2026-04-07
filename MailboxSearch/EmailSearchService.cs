@@ -124,6 +124,59 @@ public sealed class EmailSearchService
         }, cancellationToken);
     }
 
+    public async Task<CacheCleanupResult> CleanupOutdatedCacheAsync(
+        string rootFolderPath,
+        CancellationToken cancellationToken = default)
+    {
+        return await Task.Run(async () =>
+        {
+            string cacheDirectoryPath = Path.Combine(rootFolderPath, "_cache");
+            if (!Directory.Exists(cacheDirectoryPath))
+            {
+                return new CacheCleanupResult(0, 0);
+            }
+
+            ILogger cleanupLogger = Log.ForContext("RootFolderPath", rootFolderPath);
+            int removedEntries = 0;
+            int failedEntries = 0;
+
+            foreach (string cacheFilePath in Directory.EnumerateFiles(cacheDirectoryPath, "*.search.json", SearchOption.AllDirectories))
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+
+                try
+                {
+                    bool shouldDelete;
+                    await using (FileStream stream = File.OpenRead(cacheFilePath))
+                    {
+                        SearchableContentCacheEntry? cacheEntry = await JsonSerializer.DeserializeAsync<SearchableContentCacheEntry>(stream, cancellationToken: cancellationToken).ConfigureAwait(false);
+                        shouldDelete = cacheEntry is null || cacheEntry.CacheVersion != CurrentCacheVersion;
+                    }
+
+                    if (!shouldDelete)
+                    {
+                        continue;
+                    }
+
+                    File.Delete(cacheFilePath);
+                    removedEntries++;
+                }
+                catch (OperationCanceledException)
+                {
+                    throw;
+                }
+                catch (Exception ex)
+                {
+                    failedEntries++;
+                    cleanupLogger.Warning(ex, "Failed to inspect cache entry {CacheFilePath} during cleanup.", cacheFilePath);
+                }
+            }
+
+            RemoveEmptyCacheDirectories(cacheDirectoryPath);
+            return new CacheCleanupResult(removedEntries, failedEntries);
+        }, cancellationToken);
+    }
+
     private static Exception? TrySetCurrentThreadPriority(ThreadPriority priority)
     {
         try
@@ -136,6 +189,20 @@ public sealed class EmailSearchService
         }
 
         return null;
+    }
+
+    private static void RemoveEmptyCacheDirectories(string cacheDirectoryPath)
+    {
+        foreach (string directoryPath in Directory.EnumerateDirectories(cacheDirectoryPath, "*", SearchOption.AllDirectories)
+                     .OrderByDescending(path => path.Length))
+        {
+            if (Directory.EnumerateFileSystemEntries(directoryPath).Any())
+            {
+                continue;
+            }
+
+            Directory.Delete(directoryPath);
+        }
     }
 
     private static bool IsInCacheDirectory(string filePath, string cacheDirectoryPath)
@@ -497,3 +564,5 @@ public sealed class EmailSearchService
 }
 
 public readonly record struct SearchProgress(int CurrentMessageNumber, int TotalMessages);
+
+public readonly record struct CacheCleanupResult(int RemovedEntries, int FailedEntries);

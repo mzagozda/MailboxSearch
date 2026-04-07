@@ -15,6 +15,7 @@ The app also provides:
 - keyword search with `OR` semantics for unquoted terms
 - optional inclusive date-from and date-to filters
 - final result sorting by date, title, or author
+- File menu commands for cache cleanup and application exit
 - preview of the selected message
 - double-click to open the original `.eml` file with the default Windows handler
 - persistent storage of the selected source folder in the Windows registry
@@ -56,6 +57,7 @@ dotnet run
 6. After the scan completes, review the final list in the selected sort order.
 7. Select a result to preview the message text.
 8. Double-click a result to open the original `.eml` file in the default mail application.
+9. Use `File > Cleanup` to remove cache files written with older cache schema versions.
 
 ## Search Behavior
 
@@ -139,9 +141,13 @@ Cache file versioning is handled by a single integer stored inside each cache fi
 - Cache files are not stored side by side per version; each email has one cache file path.
 - A cache entry is considered valid only when all three checks succeed: last write time matches, file length matches, and `CacheVersion` matches the application's current version.
 - If the version does not match, the cache entry is ignored, the original `.eml` file is reparsed, and the same cache file is overwritten with the current format.
-- Older cache versions can remain on disk only until that message is searched again. There is no separate migration step or cleanup pass for outdated versions.
+- Older cache versions can remain on disk until that message is searched again, or until the user runs `File > Cleanup` to remove outdated cache files proactively.
 
 In practice, changing the internal cache version is a schema break switch for the cached search index. It forces lazy regeneration of stale cache files during later searches.
+
+### Manual cache cleanup
+
+The `File > Cleanup` command scans the `_cache` folder and deletes `.search.json` files whose embedded `CacheVersion` does not match the application's current cache version. The command is available only while the app is idle, and it is disabled during active searches.
 
 ## Use Cases
 

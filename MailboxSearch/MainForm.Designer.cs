@@ -29,6 +29,10 @@ partial class MainForm
     private void InitializeComponent()
     {
         components = new System.ComponentModel.Container();
+        mainMenuStrip = new MenuStrip();
+        fileToolStripMenuItem = new ToolStripMenuItem();
+        cleanupToolStripMenuItem = new ToolStripMenuItem();
+        exitToolStripMenuItem = new ToolStripMenuItem();
         mainLayoutPanel = new TableLayoutPanel();
         directoryLabel = new Label();
         directoryTextBox = new TextBox();
@@ -69,7 +73,39 @@ partial class MainForm
         previewLayoutPanel.SuspendLayout();
         mainLayoutPanel.SuspendLayout();
         buttonPanel.SuspendLayout();
+        mainMenuStrip.SuspendLayout();
         SuspendLayout();
+        // 
+        // mainMenuStrip
+        // 
+        mainMenuStrip.ImageScalingSize = new Size(20, 20);
+        mainMenuStrip.Items.AddRange(new ToolStripItem[] { fileToolStripMenuItem });
+        mainMenuStrip.Location = new Point(12, 12);
+        mainMenuStrip.Name = "mainMenuStrip";
+        mainMenuStrip.Size = new Size(1064, 28);
+        mainMenuStrip.TabIndex = 1;
+        mainMenuStrip.Text = "menuStrip1";
+        // 
+        // fileToolStripMenuItem
+        // 
+        fileToolStripMenuItem.DropDownItems.AddRange(new ToolStripItem[] { cleanupToolStripMenuItem, exitToolStripMenuItem });
+        fileToolStripMenuItem.Name = "fileToolStripMenuItem";
+        fileToolStripMenuItem.Size = new Size(46, 24);
+        fileToolStripMenuItem.Text = "File";
+        // 
+        // cleanupToolStripMenuItem
+        // 
+        cleanupToolStripMenuItem.Name = "cleanupToolStripMenuItem";
+        cleanupToolStripMenuItem.Size = new Size(147, 26);
+        cleanupToolStripMenuItem.Text = "Cleanup";
+        cleanupToolStripMenuItem.Click += cleanupToolStripMenuItem_Click;
+        // 
+        // exitToolStripMenuItem
+        // 
+        exitToolStripMenuItem.Name = "exitToolStripMenuItem";
+        exitToolStripMenuItem.Size = new Size(147, 26);
+        exitToolStripMenuItem.Text = "Exit";
+        exitToolStripMenuItem.Click += exitToolStripMenuItem_Click;
         // 
         // mainLayoutPanel
         // 
@@ -87,7 +123,7 @@ partial class MainForm
         mainLayoutPanel.Controls.Add(contentSplitContainer, 0, 3);
         mainLayoutPanel.Controls.Add(statusLabel, 0, 4);
         mainLayoutPanel.Dock = DockStyle.Fill;
-        mainLayoutPanel.Location = new Point(12, 12);
+        mainLayoutPanel.Location = new Point(12, 40);
         mainLayoutPanel.Name = "mainLayoutPanel";
         mainLayoutPanel.RowCount = 5;
         mainLayoutPanel.RowStyles.Add(new RowStyle());
@@ -95,7 +131,7 @@ partial class MainForm
         mainLayoutPanel.RowStyles.Add(new RowStyle());
         mainLayoutPanel.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
         mainLayoutPanel.RowStyles.Add(new RowStyle());
-        mainLayoutPanel.Size = new Size(1064, 637);
+        mainLayoutPanel.Size = new Size(1064, 609);
         mainLayoutPanel.TabIndex = 0;
         mainLayoutPanel.SetColumnSpan(filterPanel, 3);
         mainLayoutPanel.SetColumnSpan(contentSplitContainer, 3);
@@ -442,7 +478,7 @@ partial class MainForm
         statusLabel.AutoEllipsis = true;
         statusLabel.AutoSize = true;
         statusLabel.Dock = DockStyle.Fill;
-        statusLabel.Location = new Point(3, 607);
+        statusLabel.Location = new Point(3, 579);
         statusLabel.Name = "statusLabel";
         statusLabel.Padding = new Padding(0, 8, 0, 0);
         statusLabel.Size = new Size(1058, 30);
@@ -454,6 +490,8 @@ partial class MainForm
         AutoScaleMode = AutoScaleMode.Font;
         ClientSize = new Size(1088, 661);
         Controls.Add(mainLayoutPanel);
+        Controls.Add(mainMenuStrip);
+        MainMenuStrip = mainMenuStrip;
         MinimumSize = new Size(900, 500);
         Name = "MainForm";
         Padding = new Padding(12);
@@ -470,11 +508,18 @@ partial class MainForm
         mainLayoutPanel.PerformLayout();
         buttonPanel.ResumeLayout(false);
         buttonPanel.PerformLayout();
+        mainMenuStrip.ResumeLayout(false);
+        mainMenuStrip.PerformLayout();
         ResumeLayout(false);
+        PerformLayout();
     }
 
     #endregion
 
+    private MenuStrip mainMenuStrip;
+    private ToolStripMenuItem fileToolStripMenuItem;
+    private ToolStripMenuItem cleanupToolStripMenuItem;
+    private ToolStripMenuItem exitToolStripMenuItem;
     private TableLayoutPanel mainLayoutPanel;
     private Label directoryLabel;
     private TextBox directoryTextBox;
