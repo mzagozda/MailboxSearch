@@ -182,7 +182,7 @@ partial class MainForm
         queryTextBox.Anchor = AnchorStyles.Left | AnchorStyles.Right;
         queryTextBox.Location = new Point(104, 40);
         queryTextBox.Name = "queryTextBox";
-        queryTextBox.PlaceholderText = "Enter keywords or an exact phrase in double quotes";
+        queryTextBox.PlaceholderText = "Enter keywords, an exact phrase in double quotes, or * to match all";
         queryTextBox.Size = new Size(824, 27);
         queryTextBox.TabIndex = 4;
         queryTextBox.KeyDown += queryTextBox_KeyDown;

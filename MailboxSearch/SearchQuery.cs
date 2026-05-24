@@ -8,6 +8,8 @@ public sealed class SearchQuery
 
     public bool ExactPhrase { get; private init; }
 
+    public bool MatchAll { get; private init; }
+
     public static SearchQuery Parse(string input)
     {
         string trimmed = input.Trim();
@@ -19,6 +21,16 @@ public sealed class SearchQuery
                 RawValue = input,
                 Terms = string.IsNullOrWhiteSpace(phrase) ? Array.Empty<string>() : new[] { phrase },
                 ExactPhrase = true
+            };
+        }
+
+        if (trimmed == "*")
+        {
+            return new SearchQuery
+            {
+                RawValue = input,
+                Terms = Array.Empty<string>(),
+                MatchAll = true
             };
         }
 

@@ -181,7 +181,7 @@ public partial class MainForm : Form
 
         if (string.IsNullOrWhiteSpace(query))
         {
-            statusLabel.Text = "Enter search keywords or an exact phrase in double quotes.";
+            statusLabel.Text = "Enter search keywords, an exact phrase in double quotes, or * to match all messages.";
             resultsListView.Items.Clear();
             return;
         }

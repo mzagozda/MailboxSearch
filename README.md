@@ -13,6 +13,8 @@ The app also provides:
 
 - exact-phrase search when the full query is enclosed in double quotes
 - keyword search with `OR` semantics for unquoted terms
+- match-all wildcard when the query is a single asterisk (`*`), useful for filtering only by date
+- case-insensitive matching for keyword, exact-phrase, and wildcard searches
 - optional inclusive date-from and date-to filters
 - final result sorting by date, title, or author
 - File menu commands for cache cleanup and application exit
@@ -21,6 +23,7 @@ The app also provides:
 - persistent storage of the selected source folder in the Windows registry
 - on-disk cache in an `_cache` subfolder under the selected source folder
 - incremental search results and progress updates during scanning
+- daily rolling Serilog logs written next to the application binaries
 
 ## Requirements
 
@@ -47,6 +50,8 @@ From the project directory:
 dotnet run
 ```
 
+The application writes daily log files under `bin/.../logs/` when running from the build output. Each search start is logged, and malformed or unreadable messages are recorded as warnings without aborting the rest of the scan.
+
 ## Typical Use
 
 1. Start the application.
@@ -63,7 +68,7 @@ dotnet run
 
 ### Keyword search
 
-If the query is not wrapped in double quotes, the app splits the query into terms and returns messages containing any of those terms.
+If the query is not wrapped in double quotes, the app splits the query into terms and returns messages containing any of those terms. Keyword matching is case-insensitive.
 
 Example:
 
@@ -75,13 +80,25 @@ This matches messages containing `invoice` or `payment` or `overdue`.
 
 ### Exact phrase search
 
-If the entire query is wrapped in double quotes, the app searches for that exact phrase.
+If the entire query is wrapped in double quotes, the app searches for that exact phrase. Exact-phrase matching is also case-insensitive.
 
 Example:
 
 ```text
 "umowa została podpisana"
 ```
+
+### Match-all wildcard
+
+If the query is a single asterisk (`*`), the text filter is treated as a wildcard that matches every message. This is useful when narrowing results purely by other criteria such as `Date from` and `Date to`.
+
+Example:
+
+```text
+*
+```
+
+Combined with date filters, this returns every message in the selected date range regardless of subject, sender, or body text.
 
 ### Supported message content
 
@@ -91,6 +108,8 @@ The search includes:
 - sender text
 - plain-text body
 - HTML body converted to text
+
+Search matching is case-insensitive across all of the fields above.
 
 The solution also normalizes Unicode escape sequences such as `\u0119`, so Polish diacritic characters can be matched correctly when they appear in escaped form in message text.
 
@@ -176,13 +195,15 @@ This application is suitable for:
 ## Project Files
 
 - `Program.cs`: application entry point
-- `Form1.cs`: WinForms UI behavior
-- `Form1.Designer.cs`: WinForms layout definition
+- `MainForm.cs`: WinForms UI behavior
+- `MainForm.Designer.cs`: WinForms layout definition
 - `EmailSearchService.cs`: search, caching, parsing, progress, and cancellation logic
 - `SearchQuery.cs`: query parsing
+- `SearchOptions.cs`: search request model (query, date bounds, sort criterion)
 - `SearchTextNormalizer.cs`: text normalization and Unicode escape decoding
 - `EmailSearchResult.cs`: search result model
 - `FolderPreferenceStore.cs`: persisted folder selection in registry
+- `LoggingConfiguration.cs`: Serilog setup for daily rolling log files
 
 ## Notes
 

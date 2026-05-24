@@ -22,7 +22,7 @@ public sealed class EmailSearchService
         return await Task.Run(async () =>
         {
             SearchQuery query = SearchQuery.Parse(searchOptions.QueryText);
-            if (query.Terms.Count == 0)
+            if (query.Terms.Count == 0 && !query.MatchAll)
             {
                 return [];
             }
@@ -428,6 +428,11 @@ public sealed class EmailSearchService
 
     private static bool Matches(string content, SearchQuery query)
     {
+        if (query.MatchAll)
+        {
+            return true;
+        }
+
         if (string.IsNullOrWhiteSpace(content))
         {
             return false;
