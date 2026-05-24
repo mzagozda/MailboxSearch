@@ -66,6 +66,10 @@ partial class MainForm
         previewBodyTextBox = new TextBox();
         statusLabel = new Label();
         folderBrowserDialog = new FolderBrowserDialog();
+        saveAsFileDialog = new SaveFileDialog();
+        resultsContextMenuStrip = new ContextMenuStrip(components);
+        showInFolderToolStripMenuItem = new ToolStripMenuItem();
+        saveAsToolStripMenuItem = new ToolStripMenuItem();
         ((System.ComponentModel.ISupportInitialize)contentSplitContainer).BeginInit();
         contentSplitContainer.Panel1.SuspendLayout();
         contentSplitContainer.Panel2.SuspendLayout();
@@ -74,6 +78,7 @@ partial class MainForm
         mainLayoutPanel.SuspendLayout();
         buttonPanel.SuspendLayout();
         mainMenuStrip.SuspendLayout();
+        resultsContextMenuStrip.SuspendLayout();
         SuspendLayout();
         // 
         // mainMenuStrip
@@ -337,6 +342,7 @@ partial class MainForm
         // resultsListView
         // 
         resultsListView.Columns.AddRange(new ColumnHeader[] { subjectColumnHeader, dateColumnHeader, fromColumnHeader, pathColumnHeader });
+        resultsListView.ContextMenuStrip = resultsContextMenuStrip;
         resultsListView.Dock = DockStyle.Fill;
         resultsListView.FullRowSelect = true;
         resultsListView.GridLines = true;
@@ -349,7 +355,37 @@ partial class MainForm
         resultsListView.UseCompatibleStateImageBehavior = false;
         resultsListView.View = View.Details;
         resultsListView.DoubleClick += resultsListView_DoubleClick;
+        resultsListView.MouseDown += resultsListView_MouseDown;
         resultsListView.SelectedIndexChanged += resultsListView_SelectedIndexChanged;
+        //
+        // resultsContextMenuStrip
+        //
+        resultsContextMenuStrip.ImageScalingSize = new Size(20, 20);
+        resultsContextMenuStrip.Items.AddRange(new ToolStripItem[] { showInFolderToolStripMenuItem, saveAsToolStripMenuItem });
+        resultsContextMenuStrip.Name = "resultsContextMenuStrip";
+        resultsContextMenuStrip.Size = new Size(181, 52);
+        resultsContextMenuStrip.Opening += resultsContextMenuStrip_Opening;
+        //
+        // showInFolderToolStripMenuItem
+        //
+        showInFolderToolStripMenuItem.Name = "showInFolderToolStripMenuItem";
+        showInFolderToolStripMenuItem.Size = new Size(180, 24);
+        showInFolderToolStripMenuItem.Text = "Show in folder";
+        showInFolderToolStripMenuItem.Click += showInFolderToolStripMenuItem_Click;
+        //
+        // saveAsToolStripMenuItem
+        //
+        saveAsToolStripMenuItem.Name = "saveAsToolStripMenuItem";
+        saveAsToolStripMenuItem.Size = new Size(180, 24);
+        saveAsToolStripMenuItem.Text = "Save as...";
+        saveAsToolStripMenuItem.Click += saveAsToolStripMenuItem_Click;
+        //
+        // saveAsFileDialog
+        //
+        saveAsFileDialog.DefaultExt = "eml";
+        saveAsFileDialog.Filter = "Email message (*.eml)|*.eml|All files (*.*)|*.*";
+        saveAsFileDialog.OverwritePrompt = true;
+        saveAsFileDialog.Title = "Save email as";
         // 
         // subjectColumnHeader
         // 
@@ -510,6 +546,7 @@ partial class MainForm
         buttonPanel.PerformLayout();
         mainMenuStrip.ResumeLayout(false);
         mainMenuStrip.PerformLayout();
+        resultsContextMenuStrip.ResumeLayout(false);
         ResumeLayout(false);
         PerformLayout();
     }
@@ -553,4 +590,8 @@ partial class MainForm
     private TextBox previewBodyTextBox;
     private Label statusLabel;
     private FolderBrowserDialog folderBrowserDialog;
+    private SaveFileDialog saveAsFileDialog;
+    private ContextMenuStrip resultsContextMenuStrip;
+    private ToolStripMenuItem showInFolderToolStripMenuItem;
+    private ToolStripMenuItem saveAsToolStripMenuItem;
 }

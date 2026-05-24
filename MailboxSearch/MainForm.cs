@@ -153,6 +153,116 @@ public partial class MainForm : Form
         }
     }
 
+    private void resultsListView_MouseDown(object sender, MouseEventArgs e)
+    {
+        if (e.Button != MouseButtons.Right)
+        {
+            return;
+        }
+
+        ListViewHitTestInfo hitTest = resultsListView.HitTest(e.Location);
+        if (hitTest.Item is null)
+        {
+            resultsListView.SelectedItems.Clear();
+            return;
+        }
+
+        if (!hitTest.Item.Selected)
+        {
+            resultsListView.SelectedItems.Clear();
+            hitTest.Item.Selected = true;
+        }
+
+        hitTest.Item.Focused = true;
+    }
+
+    private void resultsContextMenuStrip_Opening(object? sender, System.ComponentModel.CancelEventArgs e)
+    {
+        if (TryGetSelectedResult(out _))
+        {
+            return;
+        }
+
+        e.Cancel = true;
+    }
+
+    private void showInFolderToolStripMenuItem_Click(object sender, EventArgs e)
+    {
+        if (!TryGetSelectedResult(out EmailSearchResult? result))
+        {
+            return;
+        }
+
+        if (!File.Exists(result.FilePath))
+        {
+            MessageBox.Show(this, "The selected EML file no longer exists.", "File not found", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            return;
+        }
+
+        try
+        {
+            string fullPath = Path.GetFullPath(result.FilePath);
+            ProcessStartInfo startInfo = new ProcessStartInfo("explorer.exe", $"/select,\"{fullPath}\"")
+            {
+                UseShellExecute = true
+            };
+            Process.Start(startInfo);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(this, $"Unable to open Explorer. {ex.Message}", "Show in folder failed", MessageBoxButtons.OK, MessageBoxIcon.Error);
+        }
+    }
+
+    private void saveAsToolStripMenuItem_Click(object sender, EventArgs e)
+    {
+        if (!TryGetSelectedResult(out EmailSearchResult? result))
+        {
+            return;
+        }
+
+        if (!File.Exists(result.FilePath))
+        {
+            MessageBox.Show(this, "The selected EML file no longer exists.", "File not found", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            return;
+        }
+
+        saveAsFileDialog.FileName = Path.GetFileName(result.FilePath);
+        string? sourceDirectory = Path.GetDirectoryName(result.FilePath);
+        if (!string.IsNullOrWhiteSpace(sourceDirectory) && Directory.Exists(sourceDirectory))
+        {
+            saveAsFileDialog.InitialDirectory = sourceDirectory;
+        }
+
+        if (saveAsFileDialog.ShowDialog(this) != DialogResult.OK)
+        {
+            return;
+        }
+
+        try
+        {
+            File.Copy(result.FilePath, saveAsFileDialog.FileName, overwrite: true);
+            statusLabel.Text = $"Saved copy to {saveAsFileDialog.FileName}";
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(this, $"Unable to save the file. {ex.Message}", "Save failed", MessageBoxButtons.OK, MessageBoxIcon.Error);
+        }
+    }
+
+    private bool TryGetSelectedResult([System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out EmailSearchResult? result)
+    {
+        if (resultsListView.SelectedItems.Count > 0
+            && resultsListView.SelectedItems[0].Tag is EmailSearchResult selected)
+        {
+            result = selected;
+            return true;
+        }
+
+        result = null;
+        return false;
+    }
+
     private async void queryTextBox_KeyDown(object sender, KeyEventArgs e)
     {
         if (e.KeyCode != Keys.Enter)

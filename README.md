@@ -20,6 +20,7 @@ The app also provides:
 - File menu commands for cache cleanup and application exit
 - preview of the selected message
 - double-click to open the original `.eml` file with the default Windows handler
+- right-click context menu on each result with "Show in folder" and "Save as..." commands
 - persistent storage of the selected source folder in the Windows registry
 - on-disk cache in an `_cache` subfolder under the selected source folder
 - incremental search results and progress updates during scanning
@@ -62,7 +63,8 @@ The application writes daily log files under `bin/.../logs/` when running from t
 6. After the scan completes, review the final list in the selected sort order.
 7. Select a result to preview the message text.
 8. Double-click a result to open the original `.eml` file in the default mail application.
-9. Use `File > Cleanup` to remove cache files written with older cache schema versions.
+9. Right-click a result for `Show in folder` (highlights the file in Windows Explorer) or `Save as...` (copies the file to a location of your choice).
+10. Use `File > Cleanup` to remove cache files written with older cache schema versions.
 
 ## Search Behavior
 
