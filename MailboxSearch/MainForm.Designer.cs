@@ -257,15 +257,13 @@ partial class MainForm
         filterPanel.Size = new Size(1058, 34);
         filterPanel.TabIndex = 6;
         filterPanel.WrapContents = false;
-        // 
+        //
         // dateFromLabel
-        // 
+        //
         dateFromLabel.Anchor = AnchorStyles.Left;
         dateFromLabel.AutoSize = true;
-        dateFromLabel.Location = new Point(3, 7);
-        dateFromLabel.Margin = new Padding(3, 7, 6, 0);
+        dateFromLabel.Margin = new Padding(3, 6, 6, 0);
         dateFromLabel.Name = "dateFromLabel";
-        dateFromLabel.Size = new Size(78, 20);
         dateFromLabel.TabIndex = 0;
         dateFromLabel.Text = "Date from:";
         // 
@@ -276,17 +274,15 @@ partial class MainForm
         dateFromPicker.Location = new Point(90, 3);
         dateFromPicker.Name = "dateFromPicker";
         dateFromPicker.ShowCheckBox = true;
-        dateFromPicker.Size = new Size(148, 27);
+        dateFromPicker.Size = new Size(200, 27);
         dateFromPicker.TabIndex = 1;
-        // 
+        //
         // dateToLabel
-        // 
+        //
         dateToLabel.Anchor = AnchorStyles.Left;
         dateToLabel.AutoSize = true;
-        dateToLabel.Location = new Point(250, 7);
-        dateToLabel.Margin = new Padding(9, 7, 6, 0);
+        dateToLabel.Margin = new Padding(9, 6, 6, 0);
         dateToLabel.Name = "dateToLabel";
-        dateToLabel.Size = new Size(61, 20);
         dateToLabel.TabIndex = 2;
         dateToLabel.Text = "Date to:";
         // 
@@ -297,17 +293,15 @@ partial class MainForm
         dateToPicker.Location = new Point(320, 3);
         dateToPicker.Name = "dateToPicker";
         dateToPicker.ShowCheckBox = true;
-        dateToPicker.Size = new Size(148, 27);
+        dateToPicker.Size = new Size(200, 27);
         dateToPicker.TabIndex = 3;
-        // 
+        //
         // sortByLabel
-        // 
+        //
         sortByLabel.Anchor = AnchorStyles.Left;
         sortByLabel.AutoSize = true;
-        sortByLabel.Location = new Point(480, 7);
-        sortByLabel.Margin = new Padding(9, 7, 6, 0);
+        sortByLabel.Margin = new Padding(9, 6, 6, 0);
         sortByLabel.Name = "sortByLabel";
-        sortByLabel.Size = new Size(58, 20);
         sortByLabel.TabIndex = 4;
         sortByLabel.Text = "Sort by:";
         // 
@@ -317,7 +311,7 @@ partial class MainForm
         sortByComboBox.FormattingEnabled = true;
         sortByComboBox.Location = new Point(547, 3);
         sortByComboBox.Name = "sortByComboBox";
-        sortByComboBox.Size = new Size(140, 28);
+        sortByComboBox.Size = new Size(180, 28);
         sortByComboBox.TabIndex = 5;
         // 
         // 
