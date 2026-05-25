@@ -1,0 +1,49 @@
+name: Build and Release
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Restore
+        run: dotnet restore MailboxSearch.sln
+
+      - name: Build
+        run: dotnet build MailboxSearch.sln --configuration Release --no-restore
+
+      - name: Publish (win-x64, self-contained)
+        run: dotnet publish MailboxSearch/MailboxSearch.csproj --configuration Release --runtime win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true --output publish/win-x64
+
+      - name: Package
+        shell: pwsh
+        run: |
+          $version = "v1.0.${{ github.run_number }}"
+          "VERSION=$version" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          Compress-Archive -Path publish/win-x64/* -DestinationPath "MailboxSearch-$version-win-x64.zip"
+
+      - name: Create release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.VERSION }}
+          name: ${{ env.VERSION }}
+          body: |
+            Automated release from commit ${{ github.sha }}.
+
+            **Commit:** ${{ github.event.head_commit.message }}
+          files: MailboxSearch-${{ env.VERSION }}-win-x64.zip
